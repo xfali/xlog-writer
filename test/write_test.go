@@ -244,11 +244,6 @@ func TestBufferedRotateFileWriterePartAndTimeWithZip(t *testing.T) {
 			MaxFileSize:     1000,
 			RotateFrequency: writer.RotateEveryMinute,
 			RotateFunc:      writer.ZipLogsAsync,
-		}, writer.Config{
-			FlushSize:     1000,
-			BufferSize:    1024,
-			FlushInterval: 50 * time.Millisecond,
-			Block:         false,
 		})
 
 		for i:= 0; i<300; i++ {

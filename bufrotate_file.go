@@ -146,13 +146,15 @@ func (f *BufferedRotateFile) Open(conf Config) error {
 					if ok {
 						_, _ = f.tryWrite(d)
 					}
-				default:
+				case <-ticker.C:
+					_, _ = f.writeFile()
 				}
 				select {
 				case <-f.stopChan:
 					return
 				case <-ticker.C:
 					_, _ = f.writeFile()
+				default:
 				}
 			}
 		}()
@@ -233,6 +235,7 @@ func (f *BufferedRotateFile) writeFile() (int, error) {
 		return 0, nil
 	}
 	defer f.buf.Reset()
+	fmt.Printf("flush! %s\n", f.buf.String())
 	n, err := f.file.Write(f.buf.Bytes())
 	f.curSize += int64(n)
 	if err != nil {
