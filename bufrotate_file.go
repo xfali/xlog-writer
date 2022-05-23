@@ -134,9 +134,9 @@ func (f *BufferedRotateFile) Open(conf Config) error {
 			defer func() {
 				size := len(f.logChan)
 				for i := 0; i < size; i++ {
-					f.tryWrite(<-f.logChan)
+					_, _ = f.tryWrite(<-f.logChan)
 				}
-				f.writeFile()
+				_, _ = f.writeFile()
 			}()
 			for {
 				select {
@@ -144,17 +144,15 @@ func (f *BufferedRotateFile) Open(conf Config) error {
 					return
 				case d, ok := <-f.logChan:
 					if ok {
-						f.tryWrite(d)
+						_, _ = f.tryWrite(d)
 					}
-				case <-ticker.C:
-					f.writeFile()
+				default:
 				}
 				select {
 				case <-f.stopChan:
 					return
 				case <-ticker.C:
-					f.writeFile()
-				default:
+					_, _ = f.writeFile()
 				}
 			}
 		}()
@@ -190,37 +188,46 @@ func (f *BufferedRotateFile) Write(data []byte) (int, error) {
 	}
 }
 
-func (f *BufferedRotateFile) tryWrite(data []byte) (int, error) {
-	if len(data) == 0 {
-		return 0, nil
-	}
-	berr, n := f.buf.Write(data)
-
+func (f *BufferedRotateFile) tryRotateByTime() error {
 	if f.timer != nil {
 		select {
 		case <-f.timer.C:
-			n, err := f.writeFile()
-			if err != nil {
-				return n, err
-			}
-			err = f.rotateByTime()
+			//n, err := f.writeFile()
+			//if err != nil {
+			//	return n, err
+			//}
+			err := f.rotateByTime()
 			f.setTimer()
 			if err != nil {
-				return 0, err
+				return err
 			}
 		default:
 		}
 	}
+	return nil
+}
+
+func (f *BufferedRotateFile) tryWrite(data []byte) (int, error) {
+	if len(data) == 0 {
+		return 0, nil
+	}
+
+	n, berr := f.buf.Write(data)
 
 	if int64(f.buf.Len()) >= f.flushSize {
-		return f.writeFile()
+		_, err := f.writeFile()
+		return n, err
 	}
-	return berr, n
+	return n, berr
 }
 
 func (f *BufferedRotateFile) writeFile() (int, error) {
 	if f.file == nil {
 		return 0, errors.New("file not opened. ")
+	}
+	err := f.tryRotateByTime()
+	if err != nil {
+		return 0, err
 	}
 	if f.buf.Len() == 0 {
 		return 0, nil
