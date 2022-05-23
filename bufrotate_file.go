@@ -155,6 +155,7 @@ func (f *BufferedRotateFile) Open(conf Config) error {
 				case <-ticker.C:
 					_, _ = f.writeFile()
 				default:
+					_ = f.tryRotateByTime()
 				}
 			}
 		}()
@@ -235,7 +236,7 @@ func (f *BufferedRotateFile) writeFile() (int, error) {
 		return 0, nil
 	}
 	defer f.buf.Reset()
-	fmt.Printf("flush! %s\n", f.buf.String())
+	//fmt.Println("flush: ", f.buf.String())
 	n, err := f.file.Write(f.buf.Bytes())
 	f.curSize += int64(n)
 	if err != nil {
